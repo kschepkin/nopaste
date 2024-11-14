@@ -6,6 +6,27 @@ let select = null;
 let clipboard = null;
 let statsEl = null;
 
+const shortenUrl = async (url) => {
+    try {
+        const response = await fetch('/api/shorturl', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                originalURL: url,
+                domain: "link.qa-team.ru"
+            })
+        });
+
+        const data = await response.json();
+        return data.shortURL;
+    } catch (error) {
+        console.error('Error shortening URL:', error);
+        return url;
+    }
+};
+
 const init = () => {
     handleLegacyUrl();
     initCodeEditor();
@@ -98,6 +119,32 @@ const initClipboard = () => {
 const initModals = () => {
     MicroModal.init({
         onClose: () => editor.focus(),
+    });
+};
+
+const generateShort = async (mode, isShort = false) => {
+    const data = editor.getValue();
+    compress(data, async (base64, err) => {
+        if (err) {
+            alert('Failed to compress data: ' + err);
+            return;
+        }
+        let url = buildUrl(base64, mode);
+        
+        if (isShort) {
+            url = await shortenUrl(url);
+        }
+        
+        statsEl.innerHTML = `Data length: ${data.length} |  Link length: ${url.length} | Compression ratio: ${Math.round(
+            (100 * url.length) / data.length
+        )}%`;
+
+        showCopyBar(url);
+        
+        // Автоматически копируем в буфер обмена для короткой ссылки
+        if (isShort) {
+            navigator.clipboard.writeText(url);
+        }
     });
 };
 
