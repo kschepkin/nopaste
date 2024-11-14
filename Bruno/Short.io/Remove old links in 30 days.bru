@@ -1,0 +1,67 @@
+meta {
+  name: Remove old links in 30 days
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://api.short.io/api/links?domain_id={{domainID}}
+  body: none
+  auth: none
+}
+
+query {
+  domain_id: {{domainID}}
+}
+
+headers {
+  Authorization: {{token}}
+}
+
+script:post-response {
+  const axios = require('axios');
+  
+  // Get current date
+  const now = new Date();
+  
+  // Get token from environment
+  const token = bru.getEnvVar('token');
+  
+  // Function to calculate days between dates
+  function daysBetween(date1, date2) {
+      const oneDay = 24 * 60 * 60 * 1000;
+      return Math.round(Math.abs((date1 - date2) / oneDay));
+  }
+  
+  // Process each link
+  for (const link of res.body.links) {
+      try {
+          // Convert createdAt to Date object
+          const createdDate = new Date(link.createdAt);
+          
+          // Calculate days since creation
+          const daysOld = daysBetween(now, createdDate);
+          
+          // Check if link is older than 0 days (for testing)
+          if (daysOld >= 30) {
+              let resp = await axios({
+                  method: 'DELETE',
+                  url: `https://api.short.io/links/${link.id}`,
+                  headers: {
+                      'Authorization': token
+                  }
+              });
+              
+              if (resp.status === 200) {
+                  console.log(`Successfully deleted link ${link.id} (${daysOld} days old)`);
+              } else {
+                  console.error(`Failed to delete link ${link.id}: ${resp.statusText}`);
+              }
+          } else {
+              console.log(`Link ${link.id} is only ${daysOld} days old - keeping`);
+          }
+      } catch (error) {
+          console.error(`Error deleting link ${link.id}:`, error.message);
+      }
+  }
+}

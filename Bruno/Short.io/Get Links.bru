@@ -1,0 +1,19 @@
+meta {
+  name: Get Links
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://api.short.io/api/links?domain_id={{domainID}}
+  body: none
+  auth: none
+}
+
+query {
+  domain_id: {{domainID}}
+}
+
+headers {
+  Authorization: {{token}}
+}

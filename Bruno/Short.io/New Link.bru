@@ -1,0 +1,22 @@
+meta {
+  name: New Link
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://api.short.io/links
+  body: json
+  auth: none
+}
+
+headers {
+  authorization: {{token}}
+}
+
+body:json {
+  {
+    "originalURL": "http://qa-team.ru/#XQAAAQA1MA444AAAAAAAAAA5mQkTt5stE///ZiwAAA==",
+    "domain": "link.qa-team.ru"
+  }
+}
