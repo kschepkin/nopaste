@@ -70,7 +70,12 @@ npm/microtip@0.2.2/microtip.min.css
                 </div>
                 <div class="col"></div>
                 <div class="col-auto my-1">
-                    <select id="language"></select>
+                    <div class="d-flex align-items-center">
+                        <button id="beautifyJson" class=" py-1 px-2 mr-2" onclick="beautifyJson()" type="button" aria-label="Beautify JSON" data-microtip-position="bottom" role="tooltip">
+                            <span class="icon-diamond"></span>
+                        </button>
+                        <select id="language"></select>
+                    </div>
                 </div>
                 <div class="col-auto">
                     <button

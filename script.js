@@ -34,6 +34,7 @@ const init = () => {
     initCode();
     initClipboard();
     initModals();
+    document.getElementById('beautifyJson').addEventListener('click', beautifyJson);
 };
 
 const initCodeEditor = () => {
@@ -70,12 +71,28 @@ const initLangSelector = () => {
             editor.setOption('mode', language.mime);
             CodeMirror.autoLoadMode(editor, language.mode);
             document.title = e.text && e.text !== 'Plain Text' ? `NoPaste - ${e.text} code snippet` : 'NoPaste';
+            
+            // Show/hide beautify button based on language
+            const beautifyButton = byId('beautifyJson');
+            if (e.text === 'JSON') {
+                beautifyButton.classList.remove('hidden');
+            } else {
+                beautifyButton.classList.add('hidden');
+            }
         },
     });
 
-    // Set lang selector
+    // Set lang selector and trigger the change event manually
     const l = new URLSearchParams(window.location.search).get('l');
-    select.set(l ? decodeURIComponent(l) : shorten('Plain Text'));
+    const initialValue = l ? decodeURIComponent(l) : shorten('Plain Text');
+    select.set(initialValue);
+    
+    // Check if JSON is selected initially
+    const selectedData = select.selected();
+    const selectedOption = select.data.getSelected();
+    if (selectedOption && selectedOption.text === 'JSON') {
+        byId('beautifyJson').classList.remove('hidden');
+    }
 };
 
 const initCode = () => {
@@ -200,11 +217,27 @@ const enableLineWrapping = () => {
     editor.setOption('lineWrapping', true);
 };
 
+window.beautifyJson = function() {
+    try {
+        const currentValue = editor.getValue();
+        if (!currentValue.trim()) return;
+        
+        const parsed = JSON.parse(currentValue);
+        const beautified = JSON.stringify(parsed, null, 2);
+        editor.setValue(beautified);
+    } catch (e) {
+        statsEl.innerHTML = `Error: Invalid JSON - ${e.message}`;
+        setTimeout(() => {
+            statsEl.innerHTML = `Length: ${editor.getValue().length} |  Lines: ${editor['doc'].size}`;
+        }, 3000);
+    }
+};
+
+
 const openInNewTab = () => {
     window.open(location.href.replace(/[?&]readonly/, ''));
 };
 
-// Build a shareable URL
 const buildUrl = (rawData, mode) => {
     const base = `${location.protocol}//${location.host}${location.pathname}`;
     const query = shorten('Plain Text') === select.selected() ? '' : `?l=${encodeURIComponent(select.selected())}`;
@@ -333,4 +366,4 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
 
-init();
+init(); 

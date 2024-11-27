@@ -231,3 +231,24 @@ button:hover {
 .icon-notes:before {
     content: '\e903';
 }
+
+/* Добавляем стили для иконки алмаза с использованием background-image */
+.icon-diamond {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBkPSJNMTIuMTYgM2gtLjMyTDkuMjEgOC4yNWg1LjU4em00LjMgNS4yNWg1LjE2TDE5IDNoLTUuMTZ6bTQuOTIgMS41aC04LjYzVjIwLjF6TTExLjI1IDIwLjFWOS43NUgyLjYyek03LjU0IDguMjUgMTAuMTYgM0g1TDIuMzggOC4yNXoiLz48L3N2Zz4=');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: invert(1); /* Делаем иконку белой */
+    vertical-align: middle;
+}
+
+/* Добавляем стили для кнопки с иконкой алмаза */
+button .icon-diamond {
+    margin: 0;
+    padding: 0;
+    width: 21px;
+    height: 21px;
+}
