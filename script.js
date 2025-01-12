@@ -218,18 +218,208 @@ const enableLineWrapping = () => {
 };
 
 window.beautifyJson = function() {
-    try {
-        const currentValue = editor.getValue();
-        if (!currentValue.trim()) return;
+    const currentValue = editor.getValue().trim();
+    if (!currentValue) return;
+
+    // Проверка, является ли JSON уже отформатированным
+    function isAlreadyFormatted(str) {
+        return /\n\s*"/.test(str) || /\n\s*[{\[]/.test(str);
+    }
+
+    function convertPythonToJson(str) {
+        return str
+            .replace(/:\s*True/g, ': true')
+            .replace(/:\s*False/g, ': false')
+            .replace(/:\s*None/g, ': null');
+    }
+
+    function convertQuotes(str) {
+        let inString = false;
+        let result = '';
+        let prevChar = '';
         
-        const parsed = JSON.parse(currentValue);
-        const beautified = JSON.stringify(parsed, null, 2);
+        for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+            
+            if (prevChar === '\\') {
+                result += char;
+                prevChar = char;
+                continue;
+            }
+            
+            if (char === "'" && !inString) {
+                result += '"';
+                inString = true;
+            } else if (char === "'" && inString) {
+                result += '"';
+                inString = false;
+            } else {
+                result += char;
+            }
+            
+            prevChar = char;
+        }
+        
+        return result;
+    }
+
+    function formatJson(jsonStr) {
+        // Если JSON уже отформатирован, просто удаляем лишние пустые строки
+        if (isAlreadyFormatted(jsonStr)) {
+            return jsonStr.replace(/\n\s*\n/g, '\n');
+        }
+
+        let indentLevel = 0;
+        let result = '';
+        let inString = false;
+        let prevChar = '';
+
+        // Сначала удаляем все существующие переносы строк и пробелы между токенами
+        jsonStr = jsonStr.replace(/\s+/g, ' ').trim();
+
+        for (let i = 0; i < jsonStr.length; i++) {
+            const char = jsonStr[i];
+
+            if (char === ' ' && !inString) continue;
+
+            if (prevChar === '\\') {
+                result += char;
+                prevChar = char;
+                continue;
+            }
+
+            if (char === '"' && prevChar !== '\\') {
+                inString = !inString;
+            }
+
+            if (!inString) {
+                if (char === '{' || char === '[') {
+                    indentLevel++;
+                    result += char + '\n' + '  '.repeat(indentLevel);
+                }
+                else if (char === '}' || char === ']') {
+                    indentLevel--;
+                    result += '\n' + '  '.repeat(indentLevel) + char;
+                }
+                else if (char === ',') {
+                    result += char + '\n' + '  '.repeat(indentLevel);
+                }
+                else if (char === ':') {
+                    result += char + ' ';
+                }
+                else {
+                    result += char;
+                }
+            } else {
+                result += char;
+            }
+
+            prevChar = char;
+        }
+
+        // Удаляем множественные пустые строки
+        return result.replace(/\n\s*\n/g, '\n');
+    }
+
+    function tryFixJson(jsonString) {
+        let fixed = convertQuotes(convertPythonToJson(jsonString));
+        
+        const stack = [];
+        const openBrackets = {'{': '}', '[': ']', '"': '"'};
+        const closeBrackets = {'}': '{', ']': '[', '"': '"'};
+        let validUpTo = 0;
+        let inString = false;
+        let prevChar = '';
+        
+        for (let i = 0; i < fixed.length; i++) {
+            const char = fixed[i];
+            
+            if (prevChar === '\\') {
+                validUpTo = i;
+                prevChar = char;
+                continue;
+            }
+            
+            if (char === '"') {
+                if (!inString) {
+                    stack.push(char);
+                    inString = true;
+                } else {
+                    stack.pop();
+                    inString = false;
+                }
+                validUpTo = i;
+            } 
+            else if (!inString) {
+                if (openBrackets[char]) {
+                    stack.push(char);
+                    validUpTo = i;
+                } else if (closeBrackets[char]) {
+                    if (stack.length > 0 && stack[stack.length - 1] === closeBrackets[char]) {
+                        stack.pop();
+                        validUpTo = i;
+                    } else {
+                        break;
+                    }
+                } else if (char === ',' || char === ':' || /\s/.test(char)) {
+                    validUpTo = i;
+                } else if (/[0-9\-.]/.test(char)) {
+                    validUpTo = i;
+                } else if (/[a-zA-Z]/.test(char)) {
+                    validUpTo = i;
+                }
+            }
+            
+            prevChar = char;
+        }
+
+        fixed = fixed.substring(0, validUpTo + 1);
+        
+        const tempStack = [...stack];
+        while (tempStack.length > 0) {
+            const openBracket = tempStack.pop();
+            if (openBracket && openBrackets[openBracket]) {
+                fixed += openBrackets[openBracket];
+            }
+        }
+        
+        return fixed;
+    }
+
+    try {
+        // Проверяем, является ли JSON уже отформатированным
+        if (isAlreadyFormatted(currentValue)) {
+            const cleaned = formatJson(currentValue);
+            editor.setValue(cleaned);
+            statsEl.innerHTML = `Cleaned | Length: ${cleaned.length} | Lines: ${editor['doc'].size}`;
+            return;
+        }
+
+        const withDoubleQuotes = convertQuotes(convertPythonToJson(currentValue));
+        const parsed = JSON.parse(withDoubleQuotes);
+        const beautified = formatJson(JSON.stringify(parsed));
         editor.setValue(beautified);
+        statsEl.innerHTML = `Beautified | Length: ${beautified.length} | Lines: ${editor['doc'].size}`;
     } catch (e) {
-        statsEl.innerHTML = `Error: Invalid JSON - ${e.message}`;
-        setTimeout(() => {
-            statsEl.innerHTML = `Length: ${editor.getValue().length} |  Lines: ${editor['doc'].size}`;
-        }, 3000);
+        try {
+            const fixed = tryFixJson(currentValue);
+            const parsed = JSON.parse(fixed);
+            const beautified = formatJson(JSON.stringify(parsed));
+            editor.setValue(beautified);
+            statsEl.innerHTML = `Fixed and beautified | Length: ${beautified.length} | Lines: ${editor['doc'].size}`;
+        } catch (e2) {
+            try {
+                const fixed = tryFixJson(currentValue);
+                const beautified = formatJson(fixed);
+                editor.setValue(beautified);
+                statsEl.innerHTML = `Partially fixed | Length: ${beautified.length} | Lines: ${editor['doc'].size}`;
+            } catch (e3) {
+                statsEl.innerHTML = `Error: Could not fix JSON - ${e2.message}`;
+                setTimeout(() => {
+                    statsEl.innerHTML = `Length: ${currentValue.length} | Lines: ${editor['doc'].size}`;
+                }, 3000);
+            }
+        }
     }
 };
 
